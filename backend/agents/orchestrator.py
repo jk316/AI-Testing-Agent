@@ -59,19 +59,38 @@ class MinimaxChatModel:
 
                 with urllib.request.urlopen(req, timeout=120) as response:
                     result = json.loads(response.read().decode("utf-8"))
-                    # Handle Anthropic format with different possible structures
+                    # Debug: print response structure
+                    print(f"[DEBUG] Response keys: {list(result.keys())}")
+                    print(f"[DEBUG] Response type: {type(result)}")
+
+                    # Try Minimax's native format first: choices[0].message.content
+                    if "choices" in result and isinstance(result["choices"], list):
+                        choice = result["choices"][0]
+                        if isinstance(choice, dict):
+                            if "message" in choice and isinstance(choice["message"], dict):
+                                msg = choice["message"]
+                                if "content" in msg:
+                                    print(f"[DEBUG] Using Minimax native format")
+                                    return msg["content"]
+                            if "text" in choice:
+                                return choice["text"]
+
+                    # Handle Anthropic format: content[0].text
                     if "content" in result and isinstance(result["content"], list):
                         content_item = result["content"][0]
                         if isinstance(content_item, dict):
                             if "text" in content_item:
                                 return content_item["text"]
-                            elif "type" in content_item:
-                                if content_item["type"] == "text":
-                                    return content_item.get("text", "")
+                            elif "type" in content_item and content_item["type"] == "text":
+                                return content_item.get("text", "")
+
                     # Try direct text field
                     if "text" in result:
                         return result["text"]
-                    raise ValueError(f"Unexpected response structure: {list(result.keys())}")
+
+                    # Last resort: return entire result as string
+                    print(f"[DEBUG] Using fallback str(result)")
+                    return str(result)
 
             except urllib.error.HTTPError as e:
                 error_body = e.read().decode("utf-8") if e.fp else ""
