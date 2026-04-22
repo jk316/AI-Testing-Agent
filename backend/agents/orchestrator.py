@@ -9,22 +9,38 @@ load_dotenv()
 
 
 class MinimaxChatModel:
-    """Minimax Chat Model wrapper compatible with LangChain"""
+    """Minimax Chat Model wrapper using Anthropic-compatible API"""
 
-    def __init__(self, api_key: str, model: str = "Minimax-Text-01", base_url: str = "https://api.minimax.chat/v"):
+    def __init__(self, api_key: str, model: str = "Minimax-Text-01"):
         self.api_key = api_key
         self.model = model
-        self.base_url = base_url.rstrip("/")
-        self.endpoint = f"{self.base_url}/text/chatcompletion_v2"
+        self.base_url = os.environ.get("ANTHROPIC_BASE_URL", "https://api.minimaxi.com/anthropic")
+        self.endpoint = f"{self.base_url}/v1/messages"
 
     def __call__(self, messages: list) -> str:
-        """Call Minimax API"""
+        """Call Minimax API using Anthropic format"""
         import json
         import urllib.request
 
+        # Convert messages to Anthropic format
+        anthropic_messages = []
+        for msg in messages:
+            role = msg.get("role", "user")
+            if role == "user":
+                role = "user"
+            elif role == "assistant":
+                role = "assistant"
+            else:
+                role = "user"
+            anthropic_messages.append({
+                "role": role,
+                "content": msg["content"]
+            })
+
         payload = {
             "model": self.model,
-            "messages": messages
+            "messages": anthropic_messages,
+            "max_tokens": 4096
         }
 
         data = json.dumps(payload).encode("utf-8")
@@ -32,7 +48,8 @@ class MinimaxChatModel:
             self.endpoint,
             data=data,
             headers={
-                "Authorization": f"Bearer {self.api_key}",
+                "x-api-key": self.api_key,
+                "anthropic-version": "2023-06-01",
                 "Content-Type": "application/json"
             },
             method="POST"
@@ -40,16 +57,16 @@ class MinimaxChatModel:
 
         with urllib.request.urlopen(req, timeout=120) as response:
             result = json.loads(response.read().decode("utf-8"))
-            return result["choices"][0]["message"]["content"]
+            return result["content"][0]["text"]
 
 
 class OrchestratorAgent:
     def __init__(self):
-        api_key = os.environ.get("MINIMAX_API_KEY")
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
         model = os.environ.get("MINIMAX_MODEL", "Minimax-Text-01")
 
         if not api_key:
-            raise ValueError("MINIMAX_API_KEY not found in environment")
+            raise ValueError("ANTHROPIC_API_KEY not found in environment")
 
         self.llm = MinimaxChatModel(api_key=api_key, model=model)
 
