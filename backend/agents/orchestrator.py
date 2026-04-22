@@ -7,6 +7,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Debug: print all relevant env vars
+print(f"[DEBUG] ANTHROPIC_BASE_URL: {os.environ.get('ANTHROPIC_BASE_URL', 'NOT SET')}")
+print(f"[DEBUG] ANTHROPIC_API_KEY: {'SET' if os.environ.get('ANTHROPIC_API_KEY') else 'NOT SET'}")
+
 
 class MinimaxChatModel:
     """Minimax Chat Model wrapper using Anthropic-compatible API"""
@@ -14,21 +18,24 @@ class MinimaxChatModel:
     def __init__(self, api_key: str, model: str = "Minimax-Text-01"):
         self.api_key = api_key
         self.model = model
-        self.base_url = os.environ.get("ANTHROPIC_BASE_URL", "https://api.minimaxi.com/anthropic")
+        self.base_url = os.environ.get("ANTHROPIC_BASE_URL", "https://api.minimaxi.com/anthropic").rstrip("/")
+        # Try different endpoint paths
         self.endpoint = f"{self.base_url}/v1/messages"
+        print(f"[DEBUG] Minimax endpoint: {self.endpoint}")
+        print(f"[DEBUG] Minimax model: {self.model}")
+        print(f"[DEBUG] API key length: {len(api_key)}")
 
-    def __call__(self, messages: list) -> str:
-        """Call Minimax API using Anthropic format"""
+    def __call__(self, messages: list, retry_count: int = 3) -> str:
+        """Call Minimax API using Anthropic format with retry"""
         import json
         import urllib.request
+        import time
 
         # Convert messages to Anthropic format
         anthropic_messages = []
         for msg in messages:
             role = msg.get("role", "user")
-            if role == "user":
-                role = "user"
-            elif role == "assistant":
+            if role == "assistant":
                 role = "assistant"
             else:
                 role = "user"
@@ -40,24 +47,41 @@ class MinimaxChatModel:
         payload = {
             "model": self.model,
             "messages": anthropic_messages,
-            "max_tokens": 4096
+            "max_tokens": 4096,
+            "stream": False
         }
 
-        data = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(
-            self.endpoint,
-            data=data,
-            headers={
-                "x-api-key": self.api_key,
-                "anthropic-version": "2023-06-01",
-                "Content-Type": "application/json"
-            },
-            method="POST"
-        )
+        for attempt in range(retry_count):
+            try:
+                data = json.dumps(payload).encode("utf-8")
+                req = urllib.request.Request(
+                    self.endpoint,
+                    data=data,
+                    headers={
+                        "Authorization": f"Bearer {self.api_key}",
+                        "anthropic-version": "2023-06-01",
+                        "Content-Type": "application/json"
+                    },
+                    method="POST"
+                )
 
-        with urllib.request.urlopen(req, timeout=120) as response:
-            result = json.loads(response.read().decode("utf-8"))
-            return result["content"][0]["text"]
+                with urllib.request.urlopen(req, timeout=120) as response:
+                    result = json.loads(response.read().decode("utf-8"))
+                    return result["content"][0]["text"]
+
+            except urllib.error.HTTPError as e:
+                error_body = e.read().decode("utf-8") if e.fp else ""
+                print(f"[DEBUG] HTTP Error {e.code}: {error_body[:1000]}")
+                if attempt < retry_count - 1 and e.code >= 500:
+                    time.sleep(1 * (attempt + 1))
+                    continue
+                raise Exception(f"HTTP {e.code}: {error_body[:500]}")
+
+            except Exception as e:
+                if attempt < retry_count - 1:
+                    time.sleep(1 * (attempt + 1))
+                    continue
+                raise
 
 
 class OrchestratorAgent:
