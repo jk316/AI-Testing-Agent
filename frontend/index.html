@@ -30,57 +30,6 @@
             color: #00d4ff;
         }
 
-        .config-section {
-            background: #16213e;
-            padding: 15px 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        .config-section label {
-            font-size: 14px;
-            color: #888;
-        }
-
-        .config-section input {
-            flex: 1;
-            min-width: 200px;
-            background: #0f0f23;
-            border: 1px solid #333;
-            border-radius: 4px;
-            color: #fff;
-            padding: 8px 12px;
-            font-size: 13px;
-        }
-
-        .config-section input:focus {
-            outline: none;
-            border-color: #00d4ff;
-        }
-
-        .config-section select {
-            background: #0f0f23;
-            border: 1px solid #333;
-            border-radius: 4px;
-            color: #fff;
-            padding: 8px 12px;
-            font-size: 13px;
-        }
-
-        .config-section button {
-            background: #00b8e6;
-            color: #fff;
-            border: none;
-            padding: 8px 20px;
-            border-radius: 4px;
-            font-size: 14px;
-            cursor: pointer;
-        }
-
         .input-section {
             background: #16213e;
             padding: 20px;
@@ -220,18 +169,6 @@
     <div class="container">
         <h1>AI Network Test Agent</h1>
 
-        <div class="config-section">
-            <label>API Key:</label>
-            <input type="password" id="apiKey" placeholder="sk-...">
-            <label>Model:</label>
-            <select id="model">
-                <option value="gpt-4o-mini">GPT-4o Mini</option>
-                <option value="gpt-4o">GPT-4o</option>
-                <option value="gpt-4-turbo">GPT-4 Turbo</option>
-            </select>
-            <button onclick="configure()">Configure</button>
-        </div>
-
         <div class="input-section">
             <textarea id="input" placeholder="Describe your network test intent...
 
@@ -254,44 +191,12 @@ Examples:
 
         <div class="output-section">
             <div class="output-title">OUTPUT</div>
-            <div class="output-box" id="output">Configure API key and enter test intent to begin...</div>
+            <div class="output-box" id="output">Enter test intent and click Generate Script...</div>
         </div>
     </div>
 
     <script>
-        let configured = false;
-
-        async function configure() {
-            const apiKey = document.getElementById('apiKey').value.trim();
-            const model = document.getElementById('model').value;
-
-            if (!apiKey) {
-                alert('Please enter API key');
-                return;
-            }
-
-            try {
-                const response = await fetch('/api/configure?api_key=' + encodeURIComponent(apiKey) + '&model=' + model, {
-                    method: 'POST'
-                });
-                const result = await response.json();
-                if (response.ok) {
-                    configured = true;
-                    document.getElementById('output').textContent = 'Configured successfully with ' + model;
-                } else {
-                    alert('Configuration failed: ' + result.error);
-                }
-            } catch (error) {
-                alert('Configuration error: ' + error.message);
-            }
-        }
-
         async function execute() {
-            if (!configured) {
-                alert('Please configure API key first');
-                return;
-            }
-
             const input = document.getElementById('input').value.trim();
             if (!input) {
                 alert('Please enter a test intent');
@@ -305,10 +210,7 @@ Examples:
             resetSteps();
 
             try {
-                const apiKey = document.getElementById('apiKey').value;
-                const model = document.getElementById('model').value;
-
-                const response = await fetch('/api/execute?api_key=' + encodeURIComponent(apiKey) + '&model=' + model, {
+                const response = await fetch('/api/execute', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ input })

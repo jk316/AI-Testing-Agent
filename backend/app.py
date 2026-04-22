@@ -2,7 +2,6 @@
 AI Test Agent - Flask Web Application
 """
 
-import os
 from flask import Flask, request, jsonify, send_from_directory
 from backend.agents.orchestrator import OrchestratorAgent
 
@@ -14,9 +13,7 @@ _orchestrator = None
 def get_orchestrator():
     global _orchestrator
     if _orchestrator is None:
-        api_key = request.args.get("api_key") or os.environ.get("OPENAI_API_KEY")
-        model = request.args.get("model", "gpt-4o-mini")
-        _orchestrator = OrchestratorAgent(api_key=api_key, model=model)
+        _orchestrator = OrchestratorAgent()
     return _orchestrator
 
 
@@ -45,25 +42,6 @@ def execute():
         return jsonify({'error': str(e), 'status': 'error'}), 400
     except Exception as e:
         return jsonify({'error': str(e), 'status': 'error'}), 500
-
-
-@app.route('/api/configure', methods=['POST'])
-def configure():
-    """Configure API key and model"""
-    global _orchestrator
-    data = request.get_json()
-
-    api_key = data.get('api_key') or os.environ.get("OPENAI_API_KEY")
-    model = data.get('model', 'gpt-4o-mini')
-
-    if not api_key:
-        return jsonify({'error': 'API key required'}), 400
-
-    try:
-        _orchestrator = OrchestratorAgent(api_key=api_key, model=model)
-        return jsonify({'status': 'configured', 'model': model})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 400
 
 
 @app.route('/api/status')

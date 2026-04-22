@@ -1,22 +1,57 @@
 """
-Orchestrator Agent - Coordinates Planner, Compiler, Verifier using LangChain
+Orchestrator Agent - Coordinates Planner, Compiler, Verifier using LangChain with Minimax
 """
 
-from langchain_openai import ChatOpenAI
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
+class MinimaxChatModel:
+    """Minimax Chat Model wrapper compatible with LangChain"""
+
+    def __init__(self, api_key: str, model: str = "Minimax-Text-01", base_url: str = "https://api.minimax.chat/v"):
+        self.api_key = api_key
+        self.model = model
+        self.base_url = base_url.rstrip("/")
+        self.endpoint = f"{self.base_url}/text/chatcompletion_v2"
+
+    def __call__(self, messages: list) -> str:
+        """Call Minimax API"""
+        import json
+        import urllib.request
+
+        payload = {
+            "model": self.model,
+            "messages": messages
+        }
+
+        data = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
+            self.endpoint,
+            data=data,
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            },
+            method="POST"
+        )
+
+        with urllib.request.urlopen(req, timeout=120) as response:
+            result = json.loads(response.read().decode("utf-8"))
+            return result["choices"][0]["message"]["content"]
 
 
 class OrchestratorAgent:
-    def __init__(self, api_key: str = None, model: str = "gpt-4o-mini"):
-        self.api_key = api_key or os.environ.get("OPENAI_API_KEY")
-        if not self.api_key:
-            raise ValueError("OpenAI API key required")
+    def __init__(self):
+        api_key = os.environ.get("MINIMAX_API_KEY")
+        model = os.environ.get("MINIMAX_MODEL", "Minimax-Text-01")
 
-        self.llm = ChatOpenAI(
-            api_key=self.api_key,
-            model=model,
-            temperature=0
-        )
+        if not api_key:
+            raise ValueError("MINIMAX_API_KEY not found in environment")
+
+        self.llm = MinimaxChatModel(api_key=api_key, model=model)
 
         from backend.agents.planner import PlannerAgent
         from backend.agents.compiler import CompilerAgent
@@ -25,7 +60,6 @@ class OrchestratorAgent:
         self.planner = PlannerAgent(self.llm)
         self.compiler = CompilerAgent(self.llm)
         self.verifier = VerifierAgent(self.llm)
-        self.max_retries = 2
 
     def execute(self, nl_input: str) -> dict:
         """Execute the full workflow: Plan -> Compile -> Verify"""

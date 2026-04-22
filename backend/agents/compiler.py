@@ -1,13 +1,9 @@
 """
-Compiler Agent - DSL to hping3 using LangChain
+Compiler Agent - DSL to hping3 using Minimax
 """
 
-from langchain.prompts import PromptTemplate
-from langchain.output_parsers import StrOutputParser
 
-
-COMPILER_PROMPT = PromptTemplate(
-    template="""You are a Network Test Compiler. Convert DSL to hping3 bash script.
+COMPILER_PROMPT = """You are a Network Test Compiler. Convert DSL to hping3 bash script.
 
 DSL Schema:
 {dsl_json}
@@ -43,15 +39,12 @@ If scan=true, use appropriate flags.
 If stress=true, use --flood or high rate.
 
 OUTPUT: Return ONLY the complete bash script, nothing else.
-""",
-    input_variables=["dsl_json", "target"]
-)
+"""
 
 
 class CompilerAgent:
     def __init__(self, llm):
         self.llm = llm
-        self.chain = COMPILER_PROMPT | self.llm | StrOutputParser()
 
     def compile(self, dsl: dict) -> tuple[str, list[str]]:
         """Compile DSL to hping3 script"""
@@ -66,9 +59,30 @@ class CompilerAgent:
         if dsl.get("traceroute") and dsl.get("ip", {}).get("random_source"):
             conflicts.append("Warning: Random source may break traceroute replies")
 
-        script = self.chain.invoke({
-            "dsl_json": str(dsl),
-            "target": dsl.get("target", "")
-        })
+        prompt = COMPILER_PROMPT.format(
+            dsl_json=str(dsl),
+            target=dsl.get("target", "")
+        )
+
+        script = self.llm([{"role": "user", "content": prompt}])
+
+        # Clean up the response - extract script from markdown if present
+        script = self._extract_script(script)
 
         return script, conflicts
+
+    def _extract_script(self, text: str) -> str:
+        """Extract bash script from response"""
+        import re
+
+        # Try to find bash code block
+        match = re.search(r'```(?:bash)?\s*([\s\S]*?)```', text)
+        if match:
+            return match.group(1).strip()
+
+        # Try to find script content
+        if text.startswith("#!/bin/bash") or text.startswith("hping3"):
+            return text.strip()
+
+        # Return as-is if no markdown formatting
+        return text.strip()
