@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Network Test Agent</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #00d4ff;
+        }
+
+        .config-section {
+            background: #16213e;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .config-section label {
+            font-size: 14px;
+            color: #888;
+        }
+
+        .config-section input {
+            flex: 1;
+            min-width: 200px;
+            background: #0f0f23;
+            border: 1px solid #333;
+            border-radius: 4px;
+            color: #fff;
+            padding: 8px 12px;
+            font-size: 13px;
+        }
+
+        .config-section input:focus {
+            outline: none;
+            border-color: #00d4ff;
+        }
+
+        .config-section select {
+            background: #0f0f23;
+            border: 1px solid #333;
+            border-radius: 4px;
+            color: #fff;
+            padding: 8px 12px;
+            font-size: 13px;
+        }
+
+        .config-section button {
+            background: #00b8e6;
+            color: #fff;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .input-section {
+            background: #16213e;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 100px;
+            background: #0f0f23;
+            border: 1px solid #333;
+            border-radius: 4px;
+            color: #fff;
+            padding: 15px;
+            font-size: 14px;
+            resize: vertical;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #00d4ff;
+        }
+
+        button {
+            background: #00d4ff;
+            color: #1a1a2e;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: #00b8e6;
+        }
+
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+
+        .status-section {
+            background: #16213e;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .status-title {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 15px;
+        }
+
+        .steps {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .step {
+            background: #0f0f23;
+            padding: 10px 15px;
+            border-radius: 4px;
+            font-size: 13px;
+            border-left: 3px solid #555;
+            transition: all 0.3s;
+        }
+
+        .step.pending { border-left-color: #555; }
+        .step.running { border-left-color: #ffcc00; background: #2a2a1a; }
+        .step.success { border-left-color: #00ff88; background: #0a2a1a; }
+        .step.error { border-left-color: #ff4444; background: #2a1a1a; }
+        .step.invalid { border-left-color: #ff8800; background: #2a2a1a; }
+
+        .output-section {
+            background: #16213e;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .output-title {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 15px;
+        }
+
+        .output-box {
+            background: #0f0f23;
+            border-radius: 4px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .output-box.error {
+            border: 1px solid #ff4444;
+            color: #ff6b6b;
+        }
+
+        .output-box .label { color: #00d4ff; font-weight: bold; }
+        .output-box .success { color: #00ff88; }
+        .output-box .warning { color: #ffcc00; }
+        .output-box .info { color: #888; }
+
+        .assumptions {
+            margin-top: 10px;
+            padding: 10px;
+            background: #1a1a2e;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .assumptions li {
+            margin: 5px 0;
+            padding-left: 15px;
+            position: relative;
+        }
+
+        .assumptions li::before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            color: #00d4ff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>AI Network Test Agent</h1>
+
+        <div class="config-section">
+            <label>API Key:</label>
+            <input type="password" id="apiKey" placeholder="sk-...">
+            <label>Model:</label>
+            <select id="model">
+                <option value="gpt-4o-mini">GPT-4o Mini</option>
+                <option value="gpt-4o">GPT-4o</option>
+                <option value="gpt-4-turbo">GPT-4 Turbo</option>
+            </select>
+            <button onclick="configure()">Configure</button>
+        </div>
+
+        <div class="input-section">
+            <textarea id="input" placeholder="Describe your network test intent...
+
+Examples:
+- Scan ports 80-443 on 192.168.1.1 with SYN flags
+- Perform stealth test on example.com using UDP
+- Flood test 10.0.0.1 with high rate
+- Trace route to 8.8.8.8 with ICMP"></textarea>
+            <button id="executeBtn" onclick="execute()">Generate Script</button>
+        </div>
+
+        <div class="status-section">
+            <div class="status-title">EXECUTION STATUS</div>
+            <div class="steps" id="steps">
+                <div class="step pending" data-step="planner">Planner: Pending</div>
+                <div class="step pending" data-step="compiler">Compiler: Pending</div>
+                <div class="step pending" data-step="verifier">Verifier: Pending</div>
+            </div>
+        </div>
+
+        <div class="output-section">
+            <div class="output-title">OUTPUT</div>
+            <div class="output-box" id="output">Configure API key and enter test intent to begin...</div>
+        </div>
+    </div>
+
+    <script>
+        let configured = false;
+
+        async function configure() {
+            const apiKey = document.getElementById('apiKey').value.trim();
+            const model = document.getElementById('model').value;
+
+            if (!apiKey) {
+                alert('Please enter API key');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/configure?api_key=' + encodeURIComponent(apiKey) + '&model=' + model, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    configured = true;
+                    document.getElementById('output').textContent = 'Configured successfully with ' + model;
+                } else {
+                    alert('Configuration failed: ' + result.error);
+                }
+            } catch (error) {
+                alert('Configuration error: ' + error.message);
+            }
+        }
+
+        async function execute() {
+            if (!configured) {
+                alert('Please configure API key first');
+                return;
+            }
+
+            const input = document.getElementById('input').value.trim();
+            if (!input) {
+                alert('Please enter a test intent');
+                return;
+            }
+
+            const btn = document.getElementById('executeBtn');
+            btn.disabled = true;
+            btn.textContent = 'Processing...';
+
+            resetSteps();
+
+            try {
+                const apiKey = document.getElementById('apiKey').value;
+                const model = document.getElementById('model').value;
+
+                const response = await fetch('/api/execute?api_key=' + encodeURIComponent(apiKey) + '&model=' + model, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ input })
+                });
+
+                const result = await response.json();
+                displayResult(result);
+                updateSteps(result);
+
+            } catch (error) {
+                displayError('Network error: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Generate Script';
+            }
+        }
+
+        function resetSteps() {
+            document.querySelectorAll('.step').forEach(el => {
+                el.className = 'step pending';
+                el.textContent = el.dataset.step.charAt(0).toUpperCase() + el.dataset.step.slice(1) + ': Pending';
+            });
+        }
+
+        function updateSteps(result) {
+            const steps = ['planner', 'compiler', 'verifier'];
+
+            steps.forEach(step => {
+                const el = document.querySelector(`[data-step="${step}"]`);
+                const data = result[step];
+
+                if (data && data.status) {
+                    el.className = 'step ' + data.status;
+                    let text = step.charAt(0).toUpperCase() + step.slice(1) + ': ';
+
+                    if (data.status === 'running') text += 'Running...';
+                    else if (data.status === 'success') text += 'Success';
+                    else if (data.status === 'error') text += 'Error';
+                    else if (data.status === 'pending') text += 'Pending';
+                    else if (data.status === 'invalid') text += 'Invalid';
+
+                    el.textContent = text;
+                }
+            });
+        }
+
+        function displayResult(result) {
+            const output = document.getElementById('output');
+
+            if (result.status === 'error') {
+                displayError('Error: ' + (result.errors ? result.errors.join(', ') : result.error));
+                return;
+            }
+
+            let html = '';
+
+            // Planner output
+            if (result.planner && result.planner.output) {
+                const dsl = result.planner.output;
+                html += '<span class="label">DSL Output:</span>\n';
+                html += '<span class="success">Target:</span> ' + (dsl.target || 'N/A') + '\n';
+                html += '<span class="success">Mode:</span> ' + (dsl.mode || 'TCP') + '\n';
+
+                if (dsl.protocol && dsl.protocol.tcp_flags && dsl.protocol.tcp_flags.length > 0) {
+                    html += '<span class="success">Flags:</span> ' + dsl.protocol.tcp_flags.join(', ') + '\n';
+                }
+                if (dsl.traffic) {
+                    html += '<span class="success">Rate:</span> ' + (dsl.traffic.rate || 'low') + '\n';
+                }
+
+                if (result.planner.assumptions && result.planner.assumptions.length > 0) {
+                    html += '\n<span class="label">Inferred Assumptions:</span>\n<ul class="assumptions">';
+                    result.planner.assumptions.forEach(a => {
+                        html += '<li>' + a + '</li>';
+                    });
+                    html += '</ul>';
+                }
+                html += '\n';
+            }
+
+            // Compiler output
+            if (result.compiler && result.compiler.output) {
+                html += '<span class="label">Generated Script:</span>\n';
+                html += result.compiler.output;
+
+                if (result.compiler.conflicts && result.compiler.conflicts.length > 0) {
+                    html += '\n\n<span class="warning">Compiler Warnings:</span>\n';
+                    result.compiler.conflicts.forEach(c => {
+                        html += c + '\n';
+                    });
+                }
+                html += '\n';
+            }
+
+            // Verifier output
+            if (result.verifier && result.verifier.result) {
+                const v = result.verifier.result;
+                html += '\n<span class="label">Verification Result:</span>\n';
+
+                ['rate_check', 'protocol_check', 'stealth_check', 'flag_check'].forEach(check => {
+                    const status = v[check] || 'N/A';
+                    const color = status === 'PASS' ? 'success' : (status === 'WARNING' ? 'warning' : 'error');
+                    html += '<span class="' + color + '">' + check.replace('_', ' ').toUpperCase() + ':</span> ' + status + '\n';
+                });
+
+                if (v.conflicts && v.conflicts.length > 0) {
+                    html += '\n<span class="warning">Conflicts:</span>\n';
+                    v.conflicts.forEach(c => {
+                        html += '- ' + c + '\n';
+                    });
+                }
+
+                const verdict = v.final_verdict || 'UNKNOWN';
+                html += '\n<span class="' + (verdict === 'VALID' ? 'success' : 'error') + '">Final Verdict:</span> ' + verdict + '\n';
+
+                if (v.fix_suggestion) {
+                    html += '<span class="info">Fix suggestion:</span> ' + v.fix_suggestion + '\n';
+                }
+            }
+
+            output.innerHTML = html;
+        }
+
+        function displayError(msg) {
+            const output = document.getElementById('output');
+            output.className = 'output-box error';
+            output.textContent = msg;
+        }
+    </script>
+</body>
+</html>
