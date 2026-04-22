@@ -85,19 +85,28 @@ class PlannerAgent:
         # Try to find JSON block
         match = re.search(r'\{[\s\S]*\}', text)
         if match:
-            return match.group(0)
+            json_str = match.group(0)
+        else:
+            # Try finding content between braces
+            start = text.find('{')
+            end = text.rfind('}') + 1
+            if start != -1 and end > start:
+                json_str = text[start:end]
+            else:
+                raise ValueError(f"Could not extract JSON from response: {text[:200]}")
 
-        # Try parsing directly
+        # Try to fix single quotes if json.loads fails
         try:
-            json.loads(text)
-            return text
+            json.loads(json_str)
+            return json_str
         except json.JSONDecodeError:
-            pass
+            # Try converting single quotes to double quotes
+            import ast
+            try:
+                # Use ast.literal_eval to parse Python dict format
+                parsed = ast.literal_eval(json_str)
+                return json.dumps(parsed)
+            except (ValueError, SyntaxError):
+                pass
 
-        # Try finding content between braces
-        start = text.find('{')
-        end = text.rfind('}') + 1
-        if start != -1 and end > start:
-            return text[start:end]
-
-        raise ValueError(f"Could not extract JSON from response: {text[:200]}")
+        raise ValueError(f"Could not parse JSON from response: {text[:200]}")
