@@ -15,7 +15,7 @@ print(f"[DEBUG] ANTHROPIC_API_KEY: {'SET' if os.environ.get('ANTHROPIC_API_KEY')
 class MinimaxChatModel:
     """Minimax Chat Model wrapper using Anthropic-compatible API"""
 
-    def __init__(self, api_key: str, model: str = "Minimax-Text-01"):
+    def __init__(self, api_key: str, model: str):
         self.api_key = api_key
         self.model = model
         self.base_url = os.environ.get("ANTHROPIC_BASE_URL", "https://api.minimaxi.com/anthropic").rstrip("/")
@@ -67,7 +67,22 @@ class MinimaxChatModel:
 
                 with urllib.request.urlopen(req, timeout=120) as response:
                     result = json.loads(response.read().decode("utf-8"))
-                    return result["content"][0]["text"]
+                    print(f"[DEBUG] Response keys: {result.keys()}")
+                    print(f"[DEBUG] Full response: {str(result)[:2000]}")
+                    # Handle Anthropic format with different possible structures
+                    if "content" in result and isinstance(result["content"], list):
+                        content_item = result["content"][0]
+                        if isinstance(content_item, dict):
+                            if "text" in content_item:
+                                return content_item["text"]
+                            elif "type" in content_item:
+                                if content_item["type"] == "text":
+                                    return content_item.get("text", "")
+                    # Try direct text field
+                    if "text" in result:
+                        return result["text"]
+                    # Fallback: try to extract from entire response
+                    return str(result)
 
             except urllib.error.HTTPError as e:
                 error_body = e.read().decode("utf-8") if e.fp else ""
@@ -87,7 +102,7 @@ class MinimaxChatModel:
 class OrchestratorAgent:
     def __init__(self):
         api_key = os.environ.get("ANTHROPIC_API_KEY")
-        model = os.environ.get("MINIMAX_MODEL", "Minimax-Text-01")
+        model = os.environ.get("MINIMAX_MODEL")
 
         if not api_key:
             raise ValueError("ANTHROPIC_API_KEY not found in environment")
