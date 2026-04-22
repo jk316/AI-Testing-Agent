@@ -62,6 +62,9 @@ class PlannerAgent:
 
     def parse(self, nl_input: str) -> dict:
         """Parse natural language to DSL"""
+        # Extract target from input first as fallback
+        extracted_target = self._extract_target(nl_input)
+
         prompt = PLANNER_PROMPT.format(nl_input=nl_input)
 
         response = self.llm([{"role": "user", "content": prompt}])
@@ -78,7 +81,27 @@ class PlannerAgent:
             if isinstance(result["protocol"], dict) and "tcp_flags" not in result["protocol"]:
                 result["protocol"]["tcp_flags"] = []
 
+        # Ensure target is valid
+        if not result.get("target") or result["target"] == "N/A" or result["target"] == "null":
+            if extracted_target:
+                result["target"] = extracted_target
+                result.setdefault("assumptions", []).append(f"Target extracted from input: {extracted_target}")
+
         return result
+
+    def _extract_target(self, text: str) -> str:
+        """Extract IP or hostname from input"""
+        # Try IP pattern
+        ip_match = re.search(r'\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b', text)
+        if ip_match:
+            return ip_match.group(1)
+        # Try hostname pattern
+        host_match = re.search(r'([a-zA-Z0-9](?:[a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)+)', text)
+        if host_match:
+            return host_match.group(1)
+        # Last resort: get last word
+        words = text.strip().split()
+        return words[-1] if words else ""
 
     def _extract_json(self, text: str) -> str:
         """Extract JSON from response text"""
