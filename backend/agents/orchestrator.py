@@ -7,10 +7,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Debug: print all relevant env vars
-print(f"[DEBUG] ANTHROPIC_BASE_URL: {os.environ.get('ANTHROPIC_BASE_URL', 'NOT SET')}")
-print(f"[DEBUG] ANTHROPIC_API_KEY: {'SET' if os.environ.get('ANTHROPIC_API_KEY') else 'NOT SET'}")
-
 
 class MinimaxChatModel:
     """Minimax Chat Model wrapper using Anthropic-compatible API"""
@@ -19,11 +15,7 @@ class MinimaxChatModel:
         self.api_key = api_key
         self.model = model
         self.base_url = os.environ.get("ANTHROPIC_BASE_URL", "https://api.minimaxi.com/anthropic").rstrip("/")
-        # Try different endpoint paths
         self.endpoint = f"{self.base_url}/v1/messages"
-        print(f"[DEBUG] Minimax endpoint: {self.endpoint}")
-        print(f"[DEBUG] Minimax model: {self.model}")
-        print(f"[DEBUG] API key length: {len(api_key)}")
 
     def __call__(self, messages: list, retry_count: int = 3) -> str:
         """Call Minimax API using Anthropic format with retry"""
@@ -67,8 +59,6 @@ class MinimaxChatModel:
 
                 with urllib.request.urlopen(req, timeout=120) as response:
                     result = json.loads(response.read().decode("utf-8"))
-                    print(f"[DEBUG] Response keys: {result.keys()}")
-                    print(f"[DEBUG] Full response: {str(result)[:2000]}")
                     # Handle Anthropic format with different possible structures
                     if "content" in result and isinstance(result["content"], list):
                         content_item = result["content"][0]
@@ -81,12 +71,10 @@ class MinimaxChatModel:
                     # Try direct text field
                     if "text" in result:
                         return result["text"]
-                    # Fallback: try to extract from entire response
-                    return str(result)
+                    raise ValueError(f"Unexpected response structure: {list(result.keys())}")
 
             except urllib.error.HTTPError as e:
                 error_body = e.read().decode("utf-8") if e.fp else ""
-                print(f"[DEBUG] HTTP Error {e.code}: {error_body[:1000]}")
                 if attempt < retry_count - 1 and e.code >= 500:
                     time.sleep(1 * (attempt + 1))
                     continue

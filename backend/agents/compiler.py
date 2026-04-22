@@ -2,6 +2,8 @@
 Compiler Agent - DSL to hping3 using Minimax
 """
 
+import re
+
 
 COMPILER_PROMPT = """You are a Network Test Compiler. Convert DSL to hping3 bash script.
 
@@ -73,8 +75,6 @@ class CompilerAgent:
 
     def _extract_script(self, text: str) -> str:
         """Extract bash script from response"""
-        import re
-
         # Try to find bash code block
         match = re.search(r'```(?:bash)?\s*([\s\S]*?)```', text)
         if match:
